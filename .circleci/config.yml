@@ -1,0 +1,63 @@
+version: 2.1
+
+defaults: &defaults
+  docker:
+    - image: circleci/golang:1.14
+    - image: elasticsearch:7.9.0
+      environment:
+        http.host: '0.0.0.0'
+        http.port: 9200
+        xpack.security.enabled: false
+        discovery.type: single-node
+
+jobs:
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-{{ checksum "go.sum" }}
+      - run: make init tidy build verify
+      - save_cache:
+          key: go-mod-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./*
+  lint:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: .
+      - run: make lint
+  test:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Waiting for Elasticsearch to be ready
+          command: |
+            for i in `seq 1 10`;
+            do
+              nc -z localhost 9200 && echo Success && exit 0
+              echo -n .
+              sleep 1
+            done
+            echo Failed waiting for Elasticsearch && exit 1
+      - run: make test
+
+workflows:
+  version: 2
+  general:
+    jobs:
+      - build
+      - lint:
+          requires:
+            - build
+      - test:
+          requires:
+            - build

@@ -1,5 +1,8 @@
 elsearm
 ===========
+[![CircleCI](https://circleci.com/gh/soranoba/elsearm.svg?style=svg&circle-token=ad0136e25df22988c8370d90926a8c4f1fb9fc61)](https://circleci.com/gh/soranoba/elsearm)
+[![Go Report Card](https://goreportcard.com/badge/github.com/soranoba/elsearm)](https://goreportcard.com/report/github.com/soranoba/elsearm)
+[![GoDoc](https://godoc.org/github.com/soranoba/elsearm?status.svg)](https://godoc.org/github.com/soranoba/elsearm)
 
 elsearm is an **El**astic**sear**ch **m**odel library for Go.
 

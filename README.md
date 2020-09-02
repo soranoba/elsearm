@@ -20,7 +20,7 @@ This is an example of using GORM.
 package models
 
 import (
-    "github.com/soranoba/elsearm"
+	"github.com/soranoba/elsearm"
 	"gorm.io/gorm"
 )
 
@@ -43,8 +43,8 @@ func getElsearmIndexer(db *gorm.DB) (*elsearm.Indexer, bool) {
 
 type User struct {
 	ID        uint      `gorm:"primarykey" json:"id"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (u *User) AfterDelete(db *gorm.DB) error {
@@ -64,14 +64,14 @@ func (u *User) AfterSave(db *gorm.DB) error {
 
 ```go
 func main() {
-    db := (func() *gorm.DB {
-        return /* do anything */
-    })()
-    indexer := elsearm.NewIndexer(ct.es)
-    db = models.UseElsearmIndexer(db, indexer)
+	db := (func() *gorm.DB {
+		return /* do anything */
+	})()
+	indexer := elsearm.NewIndexer(ct.es)
+	db = models.UseElsearmIndexer(db, indexer)
 
-    /* do anyting */
-    db.Create(&models.User{})
+	/* do anyting */
+	db.Create(&models.User{})
 }
 ```
 
@@ -82,6 +82,6 @@ It makes it easy to avoid overwrite to the same index when it execute testings.
 
 ```go
 elsearm.SetGlobalConfig(elsearm.GlobalConfig{
-    IndexNameSuffix: "_test",
+	IndexNameSuffix: "_test",
 })
 ```

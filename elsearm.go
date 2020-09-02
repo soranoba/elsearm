@@ -2,19 +2,8 @@ package elsearm
 
 import "io"
 
-type GlobalConfig struct {
-	IndexNamePrefix string
-	IndexNameSuffix string
-}
-
-var (
-	globalConfig GlobalConfig
-)
-
-func SetGlobalConfig(cfg GlobalConfig) {
-	globalConfig = cfg
-}
-
+// IndexName returns an index name of the model.
+// By default, it returns converted to snake case the struct name of model.
 func IndexName(model interface{}) string {
 	indexName := (func() string {
 		searchable, ok := model.(CustomIndexNameModel)
@@ -26,6 +15,8 @@ func IndexName(model interface{}) string {
 	return globalConfig.IndexNamePrefix + indexName + globalConfig.IndexNameSuffix
 }
 
+// DocumentID returns a document id of the model.
+// By default, it returns value of id or ID field in the model. Otherwise, it returns an empty string.
 func DocumentID(model interface{}) string {
 	searchable, ok := model.(CustomDocumentIdModel)
 	if ok {
@@ -34,6 +25,8 @@ func DocumentID(model interface{}) string {
 	return DefaultDocumentID(model)
 }
 
+// DocumentBody transforms the model into a data structure that is stored in Elasticsearch.
+// By default, it execute json.Marshal.
 func DocumentBody(model interface{}) (io.Reader, error) {
 	searchable, ok := model.(CustomDocumentBodyModel)
 	if ok {
@@ -42,6 +35,8 @@ func DocumentBody(model interface{}) (io.Reader, error) {
 	return DefaultDocumentBody(model)
 }
 
+// MustDocumentBody is similar to DocumentBody.
+// It will panic if the DocumentBody returns an error.
 func MustDocumentBody(model interface{}) io.Reader {
 	reader, err := DocumentBody(model)
 	if err != nil {
@@ -50,6 +45,8 @@ func MustDocumentBody(model interface{}) io.Reader {
 	return reader
 }
 
+// ParseDocument parses and applies the value to the model.
+// By default, it execute json.Unmarshal.
 func ParseDocument(model interface{}, reader io.Reader) error {
 	searchable, ok := model.(CustomDocumentBodyModel)
 	if ok {

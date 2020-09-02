@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Indexer provides functions to update/delete document in Elasticsearch.
 type Indexer struct {
 	client *elasticsearch.Client
 }
@@ -30,12 +31,14 @@ func (s *source) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// NewIndexer creates an Indexer.
 func NewIndexer(client *elasticsearch.Client) *Indexer {
 	return &Indexer{
 		client: client,
 	}
 }
 
+// CreateIndexIfNotExist creates an index, if it to save the model does not exist.
 func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, baseReqs ...*esapi.IndicesCreateRequest) error {
 	if len(baseReqs) > 1 {
 		panic("CreateIndexIfNotExist only accept one or two arguments")
@@ -65,6 +68,8 @@ func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, baseReqs ...*es
 	return nil
 }
 
+// CreateIndex creates an index that to save the model.
+// If it already exists, it returns an error.
 func (indexer *Indexer) CreateIndex(model interface{}, baseReqs ...*esapi.IndicesCreateRequest) error {
 	if len(baseReqs) > 1 {
 		panic("CreateIndex only accept one or two arguments")
@@ -88,6 +93,7 @@ func (indexer *Indexer) CreateIndex(model interface{}, baseReqs ...*esapi.Indice
 	return err
 }
 
+// DeleteIndex deletes an index that to save the model.
 func (indexer *Indexer) DeleteIndex(model interface{}) error {
 	deleteReq := &esapi.IndicesDeleteRequest{
 		Index: []string{IndexName(model)},
@@ -105,6 +111,7 @@ func (indexer *Indexer) DeleteIndex(model interface{}) error {
 	return nil
 }
 
+// Delete a document from Index.
 func (indexer *Indexer) Delete(model interface{}, baseReqs ...*esapi.DeleteRequest) error {
 	if model == nil {
 		return nil
@@ -135,6 +142,7 @@ func (indexer *Indexer) Delete(model interface{}, baseReqs ...*esapi.DeleteReque
 	return nil
 }
 
+// Get a document from Index.
 func (indexer *Indexer) Get(model interface{}, baseReqs ...*esapi.GetRequest) error {
 	if model == nil {
 		return nil
@@ -169,6 +177,7 @@ func (indexer *Indexer) Get(model interface{}, baseReqs ...*esapi.GetRequest) er
 	return ParseDocument(model, bytes.NewReader(m["_source"].data))
 }
 
+// Update (or create) the document in index.
 func (indexer *Indexer) Update(model interface{}, baseReqs ...*esapi.IndexRequest) error {
 	if model == nil {
 		return nil

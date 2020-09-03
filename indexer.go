@@ -16,12 +16,6 @@ type Indexer struct {
 	client *elasticsearch.Client
 }
 
-type errorResponse struct {
-	Error struct {
-		Reason string `json:"reason"`
-	} `json:"error"`
-}
-
 type source struct {
 	data []byte
 }
@@ -223,7 +217,7 @@ func (indexer *Indexer) handleResponse(res *esapi.Response) (map[string]*source,
 	}
 
 	if res.IsError() {
-		var errRes errorResponse
+		var errRes ErrorResponse
 		if err := json.Unmarshal(b, &errRes); err != nil {
 			return nil, err
 		}

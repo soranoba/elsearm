@@ -213,6 +213,34 @@ func (indexer *Indexer) Update(model interface{}, baseReqs ...*esapi.IndexReques
 	return indexer.Do(indexReq)
 }
 
+func (indexer *Indexer) Count(model interface{}, baseReqs ...*esapi.CountRequest) (int, error) {
+	if model == nil {
+		return 0, nil
+	}
+
+	if len(baseReqs) > 1 {
+		panic("Count only accept one or two arguments")
+	}
+
+	countReq := &esapi.CountRequest{}
+	if len(baseReqs) == 1 {
+		countReq = baseReqs[0]
+	}
+
+	if countReq.Index == nil {
+		countReq.Index = []string{IndexName(model)}
+	}
+
+	type CountResponse struct {
+		Count int `json:"count"`
+	}
+	var res CountResponse
+	if err := indexer.Do(countReq, &res); err != nil {
+		return 0, err
+	}
+	return res.Count, nil
+}
+
 // Do execute the request.
 // When models specified, it parses and set a model if succeeded.
 func (indexer *Indexer) Do(req Request, models ...interface{}) error {

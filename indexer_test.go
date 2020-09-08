@@ -2,6 +2,7 @@ package elsearm
 
 import (
 	"testing"
+	"time"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v7"
 )
@@ -88,4 +89,33 @@ func TestIndexerDelete(t *testing.T) {
 	if err := indexer.Get(user); err == nil {
 		t.Errorf("Get should fail but succeeded")
 	}
+}
+
+func TestIndexerCount(t *testing.T) {
+	_ = indexer.DeleteIndex(&User{})
+	if err := indexer.CreateIndex(&User{}); err != nil {
+		t.Error(err)
+	}
+
+	count, err := indexer.Count(&User{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err = indexer.CreateWithoutID(&User{Name: "Carol"}); err != nil {
+		t.Error(err)
+	}
+
+	var nextCount = 0
+	for i := 0; i < 10; i++ {
+		nextCount, err := indexer.Count(&User{})
+		if err != nil {
+			t.Error(err)
+		}
+		if count+1 == nextCount {
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+	t.Errorf("invalid count: count = %d, nextCount = %d", count, nextCount)
 }

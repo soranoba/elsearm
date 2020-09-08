@@ -6,7 +6,7 @@ build:
 	go build
 
 test:
-	go test ./... -count=1
+	go test ./... -count=1 -timeout=30s
 
 format:
 	gofmt -w ./

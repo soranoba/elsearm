@@ -16,11 +16,6 @@ type Indexer struct {
 	ctx    context.Context
 }
 
-// A interface of Request defined by esapi.
-type Request interface {
-	Do(ctx context.Context, transport esapi.Transport) (*esapi.Response, error)
-}
-
 type source struct {
 	data []byte
 }

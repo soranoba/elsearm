@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+func TestErrorResponse_Error(t *testing.T) {
+	var _ error = &ErrorResponse{}
+}
+
 func TestErrorResponse(t *testing.T) {
 	str := `{
 		"error": {

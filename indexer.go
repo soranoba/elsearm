@@ -8,12 +8,17 @@ import (
 
 	"github.com/elastic/go-elasticsearch/esapi"
 	elasticsearch "github.com/elastic/go-elasticsearch/v7"
-	"github.com/pkg/errors"
 )
 
 // Indexer provides functions to update/delete document in Elasticsearch.
 type Indexer struct {
 	client *elasticsearch.Client
+	ctx    context.Context
+}
+
+// A interface of Request defined by esapi.
+type Request interface {
+	Do(ctx context.Context, transport esapi.Transport) (*esapi.Response, error)
 }
 
 type source struct {
@@ -29,6 +34,15 @@ func (s *source) UnmarshalJSON(data []byte) error {
 func NewIndexer(client *elasticsearch.Client) *Indexer {
 	return &Indexer{
 		client: client,
+		ctx:    context.Background(),
+	}
+}
+
+// WithContext specifies a context to use and returns a new Indexer.
+func (indexer *Indexer) WithContext(ctx context.Context) *Indexer {
+	return &Indexer{
+		client: indexer.client,
+		ctx:    ctx,
 	}
 }
 
@@ -51,12 +65,7 @@ func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, baseReqs ...*es
 		Index: []string{createReq.Index},
 	}
 
-	res, err := existsReq.Do(context.Background(), indexer.client)
-	if err != nil {
-		return err
-	}
-
-	if res.IsError() {
+	if err := indexer.Do(existsReq); err != nil {
 		return indexer.CreateIndex(model, baseReqs...)
 	}
 	return nil
@@ -78,13 +87,7 @@ func (indexer *Indexer) CreateIndex(model interface{}, baseReqs ...*esapi.Indice
 		createReq.Index = IndexName(model)
 	}
 
-	res, err := createReq.Do(context.Background(), indexer.client)
-	if err != nil {
-		return err
-	}
-
-	_, err = indexer.handleResponse(res)
-	return err
+	return indexer.Do(createReq)
 }
 
 // DeleteIndex deletes an index that to save the model.
@@ -92,17 +95,7 @@ func (indexer *Indexer) DeleteIndex(model interface{}) error {
 	deleteReq := &esapi.IndicesDeleteRequest{
 		Index: []string{IndexName(model)},
 	}
-
-	res, err := deleteReq.Do(context.Background(), indexer.client)
-	if err != nil {
-		return err
-	}
-
-	if res.IsError() {
-		_, err = indexer.handleResponse(res)
-		return err
-	}
-	return nil
+	return indexer.Do(deleteReq)
 }
 
 // Delete a document from Index.
@@ -127,13 +120,7 @@ func (indexer *Indexer) Delete(model interface{}, baseReqs ...*esapi.DeleteReque
 		deleteReq.DocumentID = DocumentID(model)
 	}
 
-	res, err := deleteReq.Do(context.Background(), indexer.client)
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
-	return nil
+	return indexer.Do(deleteReq)
 }
 
 // Get a document from Index.
@@ -158,17 +145,16 @@ func (indexer *Indexer) Get(model interface{}, baseReqs ...*esapi.GetRequest) er
 		getReq.DocumentID = DocumentID(model)
 	}
 
-	res, err := getReq.Do(context.Background(), indexer.client)
-	if err != nil {
+	var result map[string]*source
+	if err := indexer.Do(getReq, &result); err != nil {
 		return err
 	}
 
-	m, err := indexer.handleResponse(res)
-	if err != nil {
-		return err
+	s := result["_source"]
+	if s == nil {
+		s = &source{}
 	}
-
-	return ParseDocument(model, bytes.NewReader(m["_source"].data))
+	return ParseDocument(model, bytes.NewReader(s.data))
 }
 
 // CreateWithoutID create a document in index without DocumentID.
@@ -197,12 +183,7 @@ func (indexer *Indexer) CreateWithoutID(model interface{}, baseReqs ...*esapi.In
 		indexReq.Body = reader
 	}
 
-	res, err := indexReq.Do(context.Background(), indexer.client)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	return nil
+	return indexer.Do(indexReq)
 }
 
 // Update (or create) the document in index.
@@ -234,33 +215,56 @@ func (indexer *Indexer) Update(model interface{}, baseReqs ...*esapi.IndexReques
 		indexReq.Body = reader
 	}
 
-	res, err := indexReq.Do(context.Background(), indexer.client)
+	return indexer.Do(indexReq)
+}
+
+// Do execute the request.
+// When models specified, it parses and set a model if succeeded.
+func (indexer *Indexer) Do(req Request, models ...interface{}) error {
+	if len(models) > 1 {
+		panic("Do only accept one or two arguments")
+	}
+
+	res, err := req.Do(indexer.ctx, indexer.client)
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+
+	if !res.IsError() && len(models) == 0 {
+		return nil
+	}
+
+	var model interface{}
+	if len(models) == 0 {
+		model = &map[string]interface{}{}
+	} else {
+		model = models[0]
+	}
+
+	if err := indexer.handleResponse(model, res); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (indexer *Indexer) handleResponse(res *esapi.Response) (map[string]*source, error) {
+func (indexer *Indexer) handleResponse(model interface{}, res *esapi.Response) error {
 	defer res.Body.Close()
 
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if res.IsError() {
 		var errRes ErrorResponse
 		if err := json.Unmarshal(b, &errRes); err != nil {
-			return nil, err
+			return err
 		}
-		return nil, errors.New(errRes.Error.Reason)
+		return &errRes
 	}
 
-	var result map[string]*source
-	if err := json.Unmarshal(b, &result); err != nil {
-		return nil, err
+	if err := json.Unmarshal(b, model); err != nil {
+		return err
 	}
-	return result, nil
+	return nil
 }

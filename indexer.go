@@ -171,6 +171,40 @@ func (indexer *Indexer) Get(model interface{}, baseReqs ...*esapi.GetRequest) er
 	return ParseDocument(model, bytes.NewReader(m["_source"].data))
 }
 
+// CreateWithoutID create a document in index without DocumentID.
+func (indexer *Indexer) CreateWithoutID(model interface{}, baseReqs ...*esapi.IndexRequest) error {
+	if model == nil {
+		return nil
+	}
+
+	if len(baseReqs) > 1 {
+		panic("CreateWithID only accept one or two arguments")
+	}
+
+	indexReq := &esapi.IndexRequest{}
+	if len(baseReqs) == 1 {
+		indexReq = baseReqs[0]
+	}
+
+	if indexReq.Index == "" {
+		indexReq.Index = IndexName(model)
+	}
+	if indexReq.Body == nil {
+		reader, err := DocumentBody(model)
+		if err != nil {
+			return err
+		}
+		indexReq.Body = reader
+	}
+
+	res, err := indexReq.Do(context.Background(), indexer.client)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	return nil
+}
+
 // Update (or create) the document in index.
 func (indexer *Indexer) Update(model interface{}, baseReqs ...*esapi.IndexRequest) error {
 	if model == nil {

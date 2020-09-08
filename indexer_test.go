@@ -36,7 +36,17 @@ func TestIndexerCreateIndex(t *testing.T) {
 	}
 }
 
-func TestIndexerCreate(t *testing.T) {
+func TestIndexerCreateWithoutID(t *testing.T) {
+	if err := indexer.CreateIndexIfNotExist(&User{}); err != nil {
+		t.Error(err)
+	}
+	user := &User{Name: "Bob"}
+	if err := indexer.CreateWithoutID(user); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIndexerUpdate(t *testing.T) {
 	if err := indexer.CreateIndexIfNotExist(&User{}); err != nil {
 		t.Error(err)
 	}

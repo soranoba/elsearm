@@ -1,6 +1,9 @@
 package elsearm
 
-import "io"
+import (
+	"io"
+	"strings"
+)
 
 // IndexName returns an index name of the model.
 // By default, it returns converted to snake case the struct name of model.
@@ -12,7 +15,17 @@ func IndexName(model interface{}) string {
 		}
 		return DefaultIndexName(model)
 	})()
-	return globalConfig.IndexNamePrefix + indexName + globalConfig.IndexNameSuffix
+
+	// Dynamic index name
+	// ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/date-math-index-names.html
+	if !strings.Contains(indexName, "%3C") {
+		return globalConfig.IndexNamePrefix + indexName + globalConfig.IndexNameSuffix
+	}
+	replacer := strings.NewReplacer(
+		"%3C", "%3C"+globalConfig.IndexNamePrefix,
+		"%3E", globalConfig.IndexNameSuffix+"%3E",
+	)
+	return replacer.Replace(indexName)
 }
 
 // DocumentID returns a document id of the model.

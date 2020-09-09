@@ -170,6 +170,7 @@ func (indexer *Indexer) Update(model interface{}, reqFuncs ...func(*esapi.IndexR
 	return indexer.Do(indexReq)
 }
 
+// Count returns count of documents saved in index.
 func (indexer *Indexer) Count(model interface{}, reqFuncs ...func(*esapi.CountRequest)) (int, error) {
 	if model == nil {
 		return 0, nil

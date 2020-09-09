@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/elastic/go-elasticsearch/esapi"
 	elasticsearch "github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 )
 
 // Indexer provides functions to update/delete document in Elasticsearch.

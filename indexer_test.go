@@ -101,21 +101,21 @@ func TestIndexerCount(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if count != 0 {
+		t.Errorf("invalid count: gots %d, wants %d", count, 0)
+	}
 
 	if err = indexer.CreateWithoutID(&User{Name: "Carol"}); err != nil {
 		t.Error(err)
 	}
 
-	var nextCount = 0
-	for i := 0; i < 10; i++ {
-		nextCount, err := indexer.Count(&User{})
-		if err != nil {
-			t.Error(err)
-		}
-		if count+1 == nextCount {
-			return
-		}
-		time.Sleep(1 * time.Second)
+	// NOTE: default refresh interval.
+	time.Sleep(1 * time.Second)
+	count, err = indexer.Count(&User{})
+	if err != nil {
+		t.Error(err)
 	}
-	t.Errorf("invalid count: count = %d, nextCount = %d", count, nextCount)
+	if count != 1 {
+		t.Errorf("invalid count: gots %d, wants %d", count, 1)
+	}
 }

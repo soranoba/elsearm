@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"reflect"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
@@ -17,7 +19,7 @@ type Indexer struct {
 }
 
 type source struct {
-	data []byte
+	data json.RawMessage
 }
 
 func (s *source) UnmarshalJSON(data []byte) error {
@@ -43,6 +45,8 @@ func (indexer *Indexer) WithContext(ctx context.Context) *Indexer {
 
 // CreateIndexIfNotExist creates an index, if it to save the model does not exist.
 func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, reqFuncs ...func(*esapi.IndicesCreateRequest)) error {
+	indexer.assertModel(model)
+
 	createReq := &esapi.IndicesCreateRequest{
 		Index: IndexName(model),
 	}
@@ -62,6 +66,8 @@ func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, reqFuncs ...fun
 // CreateIndex creates an index that to save the model.
 // If it already exists, it returns an error.
 func (indexer *Indexer) CreateIndex(model interface{}, reqFuncs ...func(*esapi.IndicesCreateRequest)) error {
+	indexer.assertModel(model)
+
 	createReq := &esapi.IndicesCreateRequest{
 		Index: IndexName(model),
 	}
@@ -73,6 +79,8 @@ func (indexer *Indexer) CreateIndex(model interface{}, reqFuncs ...func(*esapi.I
 
 // DeleteIndex deletes an index that to save the model.
 func (indexer *Indexer) DeleteIndex(model interface{}, reqFuncs ...func(*esapi.IndicesDeleteRequest)) error {
+	indexer.assertModel(model)
+
 	deleteReq := &esapi.IndicesDeleteRequest{
 		Index: []string{IndexName(model)},
 	}
@@ -84,9 +92,7 @@ func (indexer *Indexer) DeleteIndex(model interface{}, reqFuncs ...func(*esapi.I
 
 // Delete a document from Index.
 func (indexer *Indexer) Delete(model interface{}, reqFuncs ...func(*esapi.DeleteRequest)) error {
-	if model == nil {
-		return nil
-	}
+	indexer.assertModel(model)
 
 	deleteReq := &esapi.DeleteRequest{
 		Index:      IndexName(model),
@@ -101,9 +107,7 @@ func (indexer *Indexer) Delete(model interface{}, reqFuncs ...func(*esapi.Delete
 
 // Get a document from Index.
 func (indexer *Indexer) Get(model interface{}, reqFuncs ...func(*esapi.GetRequest)) error {
-	if model == nil {
-		return nil
-	}
+	indexer.assertModel(model)
 
 	getReq := &esapi.GetRequest{
 		Index:      IndexName(model),
@@ -127,9 +131,7 @@ func (indexer *Indexer) Get(model interface{}, reqFuncs ...func(*esapi.GetReques
 
 // CreateWithoutID create a document in index without DocumentID.
 func (indexer *Indexer) CreateWithoutID(model interface{}, reqFuncs ...func(*esapi.IndexRequest)) error {
-	if model == nil {
-		return nil
-	}
+	indexer.assertModel(model)
 
 	reader, err := DocumentBody(model)
 	if err != nil {
@@ -149,9 +151,7 @@ func (indexer *Indexer) CreateWithoutID(model interface{}, reqFuncs ...func(*esa
 
 // Update (or create) the document in index.
 func (indexer *Indexer) Update(model interface{}, reqFuncs ...func(*esapi.IndexRequest)) error {
-	if model == nil {
-		return nil
-	}
+	indexer.assertModel(model)
 
 	reader, err := DocumentBody(model)
 	if err != nil {
@@ -172,9 +172,7 @@ func (indexer *Indexer) Update(model interface{}, reqFuncs ...func(*esapi.IndexR
 
 // Count returns count of documents saved in index.
 func (indexer *Indexer) Count(model interface{}, reqFuncs ...func(*esapi.CountRequest)) (int, error) {
-	if model == nil {
-		return 0, nil
-	}
+	indexer.assertModel(model)
 
 	countReq := &esapi.CountRequest{
 		Index: []string{IndexName(model)},
@@ -242,4 +240,12 @@ func (indexer *Indexer) handleResponse(model interface{}, res *esapi.Response) e
 		return err
 	}
 	return nil
+}
+
+func (indexer *Indexer) assertModel(model interface{}) {
+	v := reflect.ValueOf(model)
+	if v.Kind() == reflect.Ptr && v.Elem().Kind() == reflect.Struct {
+		return
+	}
+	panic(fmt.Sprintf("invalid model: %#v", model))
 }

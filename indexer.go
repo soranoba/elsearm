@@ -42,102 +42,75 @@ func (indexer *Indexer) WithContext(ctx context.Context) *Indexer {
 }
 
 // CreateIndexIfNotExist creates an index, if it to save the model does not exist.
-func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, baseReqs ...*esapi.IndicesCreateRequest) error {
-	if len(baseReqs) > 1 {
-		panic("CreateIndexIfNotExist only accept one or two arguments")
+func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, reqFuncs ...func(*esapi.IndicesCreateRequest)) error {
+	createReq := &esapi.IndicesCreateRequest{
+		Index: IndexName(model),
 	}
-
-	createReq := &esapi.IndicesCreateRequest{}
-	if len(baseReqs) == 1 {
-		createReq = baseReqs[0]
-	}
-
-	if createReq.Index == "" {
-		createReq.Index = IndexName(model)
+	for _, f := range reqFuncs {
+		f(createReq)
 	}
 
 	existsReq := &esapi.IndicesExistsRequest{
 		Index: []string{createReq.Index},
 	}
-
 	if err := indexer.Do(existsReq); err != nil {
-		return indexer.CreateIndex(model, baseReqs...)
+		return indexer.CreateIndex(model, reqFuncs...)
 	}
 	return nil
 }
 
 // CreateIndex creates an index that to save the model.
 // If it already exists, it returns an error.
-func (indexer *Indexer) CreateIndex(model interface{}, baseReqs ...*esapi.IndicesCreateRequest) error {
-	if len(baseReqs) > 1 {
-		panic("CreateIndex only accept one or two arguments")
+func (indexer *Indexer) CreateIndex(model interface{}, reqFuncs ...func(*esapi.IndicesCreateRequest)) error {
+	createReq := &esapi.IndicesCreateRequest{
+		Index: IndexName(model),
 	}
-
-	createReq := &esapi.IndicesCreateRequest{}
-	if len(baseReqs) == 1 {
-		createReq = baseReqs[0]
+	for _, f := range reqFuncs {
+		f(createReq)
 	}
-
-	if createReq.Index == "" {
-		createReq.Index = IndexName(model)
-	}
-
 	return indexer.Do(createReq)
 }
 
 // DeleteIndex deletes an index that to save the model.
-func (indexer *Indexer) DeleteIndex(model interface{}) error {
+func (indexer *Indexer) DeleteIndex(model interface{}, reqFuncs ...func(*esapi.IndicesDeleteRequest)) error {
 	deleteReq := &esapi.IndicesDeleteRequest{
 		Index: []string{IndexName(model)},
+	}
+	for _, f := range reqFuncs {
+		f(deleteReq)
 	}
 	return indexer.Do(deleteReq)
 }
 
 // Delete a document from Index.
-func (indexer *Indexer) Delete(model interface{}, baseReqs ...*esapi.DeleteRequest) error {
+func (indexer *Indexer) Delete(model interface{}, reqFuncs ...func(*esapi.DeleteRequest)) error {
 	if model == nil {
 		return nil
 	}
 
-	if len(baseReqs) > 1 {
-		panic("Delete only accept one or two arguments")
+	deleteReq := &esapi.DeleteRequest{
+		Index:      IndexName(model),
+		DocumentID: DocumentID(model),
 	}
-
-	deleteReq := &esapi.DeleteRequest{}
-	if len(baseReqs) == 1 {
-		deleteReq = baseReqs[0]
-	}
-
-	if deleteReq.Index == "" {
-		deleteReq.Index = IndexName(model)
-	}
-	if deleteReq.DocumentID == "" {
-		deleteReq.DocumentID = DocumentID(model)
+	for _, f := range reqFuncs {
+		f(deleteReq)
 	}
 
 	return indexer.Do(deleteReq)
 }
 
 // Get a document from Index.
-func (indexer *Indexer) Get(model interface{}, baseReqs ...*esapi.GetRequest) error {
+func (indexer *Indexer) Get(model interface{}, reqFuncs ...func(*esapi.GetRequest)) error {
 	if model == nil {
 		return nil
 	}
 
-	if len(baseReqs) > 1 {
-		panic("Get only accept one or two arguments")
+	getReq := &esapi.GetRequest{
+		Index:      IndexName(model),
+		DocumentID: DocumentID(model),
 	}
-
-	getReq := &esapi.GetRequest{}
-	if len(baseReqs) == 1 {
-		getReq = baseReqs[0]
-	}
-
-	if getReq.Index == "" {
-		getReq.Index = IndexName(model)
-	}
-	if getReq.DocumentID == "" {
-		getReq.DocumentID = DocumentID(model)
+	for _, f := range reqFuncs {
+		f(getReq)
 	}
 
 	var result map[string]*source
@@ -153,82 +126,60 @@ func (indexer *Indexer) Get(model interface{}, baseReqs ...*esapi.GetRequest) er
 }
 
 // CreateWithoutID create a document in index without DocumentID.
-func (indexer *Indexer) CreateWithoutID(model interface{}, baseReqs ...*esapi.IndexRequest) error {
+func (indexer *Indexer) CreateWithoutID(model interface{}, reqFuncs ...func(*esapi.IndexRequest)) error {
 	if model == nil {
 		return nil
 	}
 
-	if len(baseReqs) > 1 {
-		panic("CreateWithID only accept one or two arguments")
+	reader, err := DocumentBody(model)
+	if err != nil {
+		return err
 	}
 
-	indexReq := &esapi.IndexRequest{}
-	if len(baseReqs) == 1 {
-		indexReq = baseReqs[0]
+	indexReq := &esapi.IndexRequest{
+		Index: IndexName(model),
+		Body:  reader,
 	}
-
-	if indexReq.Index == "" {
-		indexReq.Index = IndexName(model)
-	}
-	if indexReq.Body == nil {
-		reader, err := DocumentBody(model)
-		if err != nil {
-			return err
-		}
-		indexReq.Body = reader
+	for _, f := range reqFuncs {
+		f(indexReq)
 	}
 
 	return indexer.Do(indexReq)
 }
 
 // Update (or create) the document in index.
-func (indexer *Indexer) Update(model interface{}, baseReqs ...*esapi.IndexRequest) error {
+func (indexer *Indexer) Update(model interface{}, reqFuncs ...func(*esapi.IndexRequest)) error {
 	if model == nil {
 		return nil
 	}
 
-	if len(baseReqs) > 1 {
-		panic("Update only accept one or two arguments")
+	reader, err := DocumentBody(model)
+	if err != nil {
+		return err
 	}
 
-	indexReq := &esapi.IndexRequest{}
-	if len(baseReqs) == 1 {
-		indexReq = baseReqs[0]
+	indexReq := &esapi.IndexRequest{
+		Index:      IndexName(model),
+		DocumentID: DocumentID(model),
+		Body:       reader,
 	}
-
-	if indexReq.Index == "" {
-		indexReq.Index = IndexName(model)
-	}
-	if indexReq.DocumentID == "" {
-		indexReq.DocumentID = DocumentID(model)
-	}
-	if indexReq.Body == nil {
-		reader, err := DocumentBody(model)
-		if err != nil {
-			return err
-		}
-		indexReq.Body = reader
+	for _, f := range reqFuncs {
+		f(indexReq)
 	}
 
 	return indexer.Do(indexReq)
 }
 
-func (indexer *Indexer) Count(model interface{}, baseReqs ...*esapi.CountRequest) (int, error) {
+func (indexer *Indexer) Count(model interface{}, reqFuncs ...func(*esapi.CountRequest)) (int, error) {
 	if model == nil {
 		return 0, nil
 	}
 
-	if len(baseReqs) > 1 {
-		panic("Count only accept one or two arguments")
+	countReq := &esapi.CountRequest{
+		Index: []string{IndexName(model)},
 	}
-
-	countReq := &esapi.CountRequest{}
-	if len(baseReqs) == 1 {
-		countReq = baseReqs[0]
-	}
-
-	if countReq.Index == nil {
-		countReq.Index = []string{IndexName(model)}
+	for _, f := range reqFuncs {
+		f(countReq)
 	}
 
 	type CountResponse struct {

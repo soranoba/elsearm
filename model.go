@@ -10,26 +10,31 @@ import (
 	"strconv"
 )
 
-// CustomIndexNameModel is an interface to be implemented when customizing IndexName of model.
+// CustomIndexNameModel is an interface to implement when customizing IndexName of model.
 type CustomIndexNameModel interface {
 	// GetIndexName returns an IndexName.
 	GetIndexName() string
 }
 
-// CustomDocumentIdModel is an interface to be implemented when customizing DocumentID of model.
+// CustomSearchIndexNameModel is an interface to implement when customizing IndexName of model when searching.
+type CustomSearchIndexNameModel interface {
+	// GetSearchIndexName returns an IndexName which is search target.
+	GetSearchIndexName() []string
+}
+
+// CustomDocumentIdModel is an interface to implement when customizing DocumentID of model.
 type CustomDocumentIdModel interface {
 	// GetDocumentID returns an DocumentID.
 	GetDocumentID() string
 }
 
-// CustomDocumentBodyModel is an interface to be implemented when customizing DocumentBody of model.
+// CustomDocumentBodyModel is an interface to implement when customizing DocumentBody of model.
 type CustomDocumentBodyModel interface {
 	GetDocumentBody() (io.Reader, error)
 	ParseDocument(io.Reader) error
 }
 
 // DefaultIndexName returns a default IndexName.
-// It will be executed if you do not implement CustomIndexNameModel.
 func DefaultIndexName(model interface{}) string {
 	if model == nil {
 		return ""
@@ -38,7 +43,6 @@ func DefaultIndexName(model interface{}) string {
 }
 
 // DefaultDocumentID returns a default DocumentID.
-// It will be executed if you do not implement CustomDocumentIdModel.
 func DefaultDocumentID(model interface{}) string {
 	if model == nil {
 		return ""
@@ -71,7 +75,6 @@ func DefaultDocumentID(model interface{}) string {
 }
 
 // DefaultDocumentBody returns a default DocumentBody.
-// It will be executed if you do not implement CustomDocumentBodyModel.
 func DefaultDocumentBody(model interface{}) (io.Reader, error) {
 	if model == nil {
 		return nil, errors.New("empty document")
@@ -85,7 +88,6 @@ func DefaultDocumentBody(model interface{}) (io.Reader, error) {
 }
 
 // DefaultParseDocument parse the content of reader, and update the model.
-// It will be executed if you do not implement CustomDocumentBodyModel.
 func DefaultParseDocument(model interface{}, reader io.Reader) error {
 	b, err := ioutil.ReadAll(reader)
 	if err != nil {

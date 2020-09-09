@@ -218,7 +218,7 @@ func (indexer *Indexer) Search(model interface{}, reqFuncs ...func(*esapi.Search
 		t = t.Elem()
 	}
 	searchReq := &esapi.SearchRequest{
-		Index: []string{IndexName(reflect.New(t).Interface())},
+		Index: SearchIndexName(reflect.New(t).Interface()),
 		Size:  size,
 	}
 	for _, f := range reqFuncs {

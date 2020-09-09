@@ -15,7 +15,25 @@ func IndexName(model interface{}) string {
 		}
 		return DefaultIndexName(model)
 	})()
+	return IndexNameWithAffix(indexName)
+}
 
+// SearchIndexName returns an index name of the model when searching.
+// By default, it returns the same index name as the return value of IndexName.
+func SearchIndexName(model interface{}) []string {
+	searchable, ok := model.(CustomSearchIndexNameModel)
+	if ok {
+		names := searchable.GetSearchIndexName()
+		for i, name := range names {
+			names[i] = IndexNameWithAffix(name)
+		}
+		return names
+	}
+	return []string{IndexName(model)}
+}
+
+// IndexNameWithAffix returns an index name appending prefix and suffix.
+func IndexNameWithAffix(indexName string) string {
 	// Dynamic index name
 	// ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/date-math-index-names.html
 	if !strings.Contains(indexName, "%3C") {

@@ -14,6 +14,7 @@ import (
 
 // Indexer provides functions to update/delete document in Elasticsearch.
 type Indexer struct {
+	Q      *esapi.API
 	client *elasticsearch.Client
 	ctx    context.Context
 }
@@ -30,6 +31,7 @@ func (s *source) UnmarshalJSON(data []byte) error {
 // NewIndexer creates an Indexer.
 func NewIndexer(client *elasticsearch.Client) *Indexer {
 	return &Indexer{
+		Q:      client.API,
 		client: client,
 		ctx:    context.Background(),
 	}
@@ -189,6 +191,85 @@ func (indexer *Indexer) Count(model interface{}, reqFuncs ...func(*esapi.CountRe
 		return 0, err
 	}
 	return res.Count, nil
+}
+
+// Search documents in the index, and set results to the model.
+func (indexer *Indexer) Search(model interface{}, reqFuncs ...func(*esapi.SearchRequest)) error {
+	v := reflect.ValueOf(model)
+	if v.Kind() != reflect.Ptr {
+		panic(fmt.Sprintf("invalid model: %#v", model))
+	}
+
+	v = reflect.Indirect(v)
+	var size *int
+	if v.Kind() == reflect.Struct {
+		s := 1
+		size = &s
+		v = reflect.ValueOf(&[...]interface{}{model}).Elem()
+	} else if v.Kind() == reflect.Array {
+		s := v.Len()
+		size = &s
+	} else if v.Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid model: %#v", model))
+	}
+
+	t := v.Type().Elem()
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	searchReq := &esapi.SearchRequest{
+		Index: []string{IndexName(reflect.New(t).Interface())},
+		Size:  size,
+	}
+	for _, f := range reqFuncs {
+		f(searchReq)
+	}
+
+	type SearchResponse struct {
+		Hits struct {
+			Hits []struct {
+				Source json.RawMessage `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	var res SearchResponse
+	if err := indexer.Do(searchReq, &res); err != nil {
+		return err
+	}
+
+	for i, hit := range res.Hits.Hits {
+		if i >= v.Len() && v.Kind() == reflect.Slice {
+			elem := reflect.New(v.Type().Elem()).Elem()
+			v.Set(reflect.Append(v, elem))
+		}
+
+		if i < v.Len() {
+			var aModel interface{}
+
+			vv := v.Index(i)
+			if vv.Kind() == reflect.Ptr {
+				if vv.Type().Elem().Kind() == reflect.Struct {
+					if vv.IsNil() {
+						vv.Set(reflect.New(vv.Type().Elem()))
+					}
+					aModel = vv.Interface()
+				}
+			} else if vv.Kind() == reflect.Struct {
+				aModel = vv.Addr().Interface()
+			}
+
+			if aModel == nil {
+				panic(fmt.Sprintf("invalid model: %#v", model))
+			}
+
+			if err := ParseDocument(aModel, bytes.NewReader(hit.Source)); err != nil {
+				return err
+			}
+		} else {
+			break
+		}
+	}
+	return nil
 }
 
 // Do execute the request.

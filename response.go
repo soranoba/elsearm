@@ -43,7 +43,12 @@ type SearchResponse struct {
 	} `json:"hits"`
 }
 
+//  SetResult copies the hit result to models.
 func (res *SearchResponse) SetResult(models interface{}) error {
+	if res == nil {
+		return nil
+	}
+
 	v := reflect.ValueOf(models)
 	if r, ok := models.(reflect.Value); ok {
 		v = r

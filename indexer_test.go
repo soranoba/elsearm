@@ -136,7 +136,7 @@ func TestIndexerSearch(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	var users []User
-	if err := indexer.Search(&users); err != nil {
+	if _, err := indexer.Search(&users); err != nil {
 		t.Error(err)
 	}
 	if len(users) != 3 ||
@@ -147,7 +147,7 @@ func TestIndexerSearch(t *testing.T) {
 	}
 
 	var arrUsers [1]User
-	if err := indexer.Search(&arrUsers); err != nil {
+	if _, err := indexer.Search(&arrUsers); err != nil {
 		t.Error(err)
 	}
 	if len(arrUsers) != 1 || arrUsers[0].Name != "Alice" {
@@ -155,7 +155,7 @@ func TestIndexerSearch(t *testing.T) {
 	}
 
 	var ptrUsers []*User
-	if err := indexer.Search(&ptrUsers); err != nil {
+	if _, err := indexer.Search(&ptrUsers); err != nil {
 		t.Error(err)
 	}
 	if len(ptrUsers) != 3 ||
@@ -166,10 +166,90 @@ func TestIndexerSearch(t *testing.T) {
 	}
 
 	var ptrArrUsers [1]*User
-	if err := indexer.Search(&ptrArrUsers); err != nil {
+	if _, err := indexer.Search(&ptrArrUsers); err != nil {
 		t.Error(err)
 	}
 	if len(ptrArrUsers) != 1 || ptrArrUsers[0].Name != "Alice" {
 		t.Errorf("invalid result: got %#v", ptrArrUsers)
+	}
+}
+
+func TestIndexerScroll(t *testing.T) {
+	_ = indexer.DeleteIndex(&User{})
+	if err := indexer.CreateIndex(&User{}); err != nil {
+		t.Error(err)
+	}
+
+	for _, name := range []string{"Alice", "Bob", "Carol"} {
+		if err := indexer.CreateWithoutID(&User{Name: name}); err != nil {
+			t.Error(err)
+		}
+	}
+
+	// NOTE: default refresh interval.
+	time.Sleep(1 * time.Second)
+
+	var users []User
+	meta, err := indexer.Search(
+		&users,
+		indexer.Q.Search.WithSize(1),
+		indexer.Q.Search.WithScroll(1*time.Minute),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	if meta.ScrollID == "" {
+		t.Errorf("scroll id is empty")
+	}
+	if users == nil || len(users) != 1 || users[0].Name != "Alice" {
+		t.Errorf("invalid result: got %#v", users)
+	}
+
+	users = nil
+	meta, err = indexer.Scroll(
+		&users,
+		indexer.Q.Scroll.WithScrollID(meta.ScrollID),
+		indexer.Q.Scroll.WithScroll(1*time.Minute),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	if meta.ScrollID == "" {
+		t.Errorf("scroll id is empty")
+	}
+	if users == nil || len(users) != 1 || users[0].Name != "Bob" {
+		t.Errorf("invalid result: got %#v", users)
+	}
+
+	users = nil
+	meta, err = indexer.Scroll(
+		&users,
+		indexer.Q.Scroll.WithScrollID(meta.ScrollID),
+		indexer.Q.Scroll.WithScroll(1*time.Minute),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	if meta.ScrollID == "" {
+		t.Errorf("scroll id is empty")
+	}
+	if users == nil || len(users) != 1 || users[0].Name != "Carol" {
+		t.Errorf("invalid result: got %#v", users)
+	}
+
+	users = nil
+	meta, err = indexer.Scroll(
+		&users,
+		indexer.Q.Scroll.WithScrollID(meta.ScrollID),
+		indexer.Q.Scroll.WithScroll(1*time.Minute),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	if meta.ScrollID == "" {
+		t.Errorf("scroll id is empty")
+	}
+	if users != nil {
+		t.Errorf("invalid result: got %#v", users)
 	}
 }

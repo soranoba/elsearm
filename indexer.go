@@ -19,6 +19,17 @@ type Indexer struct {
 	ctx    context.Context
 }
 
+// SearchResult is the metadata of the search result.
+type SearchResult struct {
+	// A search context
+	ScrollID string
+	// Total number of hits
+	Total int
+	// Accuracy of the total. The value is `eq` or `gte`.
+	// ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
+	TotalAccuracy string
+}
+
 type source struct {
 	data json.RawMessage
 }
@@ -194,10 +205,10 @@ func (indexer *Indexer) Count(model interface{}, reqFuncs ...func(*esapi.CountRe
 }
 
 // Search documents in the index, and set results to the model.
-func (indexer *Indexer) Search(model interface{}, reqFuncs ...func(*esapi.SearchRequest)) error {
-	v := reflect.ValueOf(model)
+func (indexer *Indexer) Search(models interface{}, reqFuncs ...func(*esapi.SearchRequest)) (*SearchResult, error) {
+	v := reflect.ValueOf(models)
 	if v.Kind() != reflect.Ptr {
-		panic(fmt.Sprintf("invalid model: %#v", model))
+		panic(fmt.Sprintf("invalid model: %#v", models))
 	}
 
 	v = reflect.Indirect(v)
@@ -205,12 +216,12 @@ func (indexer *Indexer) Search(model interface{}, reqFuncs ...func(*esapi.Search
 	if v.Kind() == reflect.Struct {
 		s := 1
 		size = &s
-		v = reflect.ValueOf(&[...]interface{}{model}).Elem()
+		v = reflect.ValueOf(&[...]interface{}{models}).Elem()
 	} else if v.Kind() == reflect.Array {
 		s := v.Len()
 		size = &s
 	} else if v.Kind() != reflect.Slice {
-		panic(fmt.Sprintf("invalid model: %#v", model))
+		panic(fmt.Sprintf("invalid model: %#v", models))
 	}
 
 	t := v.Type().Elem()
@@ -225,51 +236,55 @@ func (indexer *Indexer) Search(model interface{}, reqFuncs ...func(*esapi.Search
 		f(searchReq)
 	}
 
-	type SearchResponse struct {
-		Hits struct {
-			Hits []struct {
-				Source json.RawMessage `json:"_source"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
 	var res SearchResponse
 	if err := indexer.Do(searchReq, &res); err != nil {
-		return err
+		return nil, err
 	}
 
-	for i, hit := range res.Hits.Hits {
-		if i >= v.Len() && v.Kind() == reflect.Slice {
-			elem := reflect.New(v.Type().Elem()).Elem()
-			v.Set(reflect.Append(v, elem))
-		}
-
-		if i < v.Len() {
-			var aModel interface{}
-
-			vv := v.Index(i)
-			if vv.Kind() == reflect.Ptr {
-				if vv.Type().Elem().Kind() == reflect.Struct {
-					if vv.IsNil() {
-						vv.Set(reflect.New(vv.Type().Elem()))
-					}
-					aModel = vv.Interface()
-				}
-			} else if vv.Kind() == reflect.Struct {
-				aModel = vv.Addr().Interface()
-			}
-
-			if aModel == nil {
-				panic(fmt.Sprintf("invalid model: %#v", model))
-			}
-
-			if err := ParseDocument(aModel, bytes.NewReader(hit.Source)); err != nil {
-				return err
-			}
-		} else {
-			break
-		}
+	if err := res.SetResult(v); err != nil {
+		return nil, err
 	}
-	return nil
+
+	return &SearchResult{
+		ScrollID:      res.ScrollID,
+		Total:         res.Hits.Total.Value,
+		TotalAccuracy: res.Hits.Total.Relation,
+	}, nil
+}
+
+// Scroll the search results, and set results to the model.
+func (indexer *Indexer) Scroll(model interface{}, reqFuncs ...func(*esapi.ScrollRequest)) (*SearchResult, error) {
+	v := reflect.ValueOf(model)
+	if v.Kind() != reflect.Ptr {
+		panic(fmt.Sprintf("invalid model: %#v", model))
+	}
+
+	v = reflect.Indirect(v)
+	if v.Kind() == reflect.Struct {
+		v = reflect.ValueOf(&[...]interface{}{model}).Elem()
+	} else if v.Kind() != reflect.Array && v.Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid model: %#v", model))
+	}
+
+	scrollReq := &esapi.ScrollRequest{}
+	for _, f := range reqFuncs {
+		f(scrollReq)
+	}
+
+	var res SearchResponse
+	if err := indexer.Do(scrollReq, &res); err != nil {
+		return nil, err
+	}
+
+	if err := res.SetResult(v); err != nil {
+		return nil, err
+	}
+
+	return &SearchResult{
+		ScrollID:      res.ScrollID,
+		Total:         res.Hits.Total.Value,
+		TotalAccuracy: res.Hits.Total.Relation,
+	}, nil
 }
 
 // Do execute the request.

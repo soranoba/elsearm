@@ -58,12 +58,12 @@ func (res *SearchResponse) SetResult(models interface{}) error {
 	if v.Kind() != reflect.Array && v.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid model: %#v", models))
 	}
-	for i, hit := range res.Hits.Hits {
-		if i >= v.Len() && v.Kind() == reflect.Slice {
-			elem := reflect.New(v.Type().Elem()).Elem()
-			v.Set(reflect.Append(v, elem))
-		}
 
+	if v.Kind() == reflect.Slice {
+		v.Set(reflect.MakeSlice(v.Type(), len(res.Hits.Hits), len(res.Hits.Hits)))
+	}
+
+	for i, hit := range res.Hits.Hits {
 		if i < v.Len() {
 			var aModel interface{}
 

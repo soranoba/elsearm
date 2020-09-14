@@ -174,6 +174,45 @@ func TestIndexerSearch(t *testing.T) {
 	}
 }
 
+func TestIndexerSearchNotFound(t *testing.T) {
+	_ = indexer.DeleteIndex(&User{})
+	if err := indexer.CreateIndex(&User{}); err != nil {
+		t.Error(err)
+	}
+
+	var users []User
+	if _, err := indexer.Search(&users); err != nil {
+		t.Error(err)
+	}
+	if users == nil || len(users) != 0 {
+		t.Errorf("invalid result: got %#v", users)
+	}
+
+	var arrUsers [1]User
+	if _, err := indexer.Search(&arrUsers); err != nil {
+		t.Error(err)
+	}
+	if arrUsers[0].Name != "" {
+		t.Errorf("invalid result: got %#v", arrUsers)
+	}
+
+	var ptrUsers []*User
+	if _, err := indexer.Search(&ptrUsers); err != nil {
+		t.Error(err)
+	}
+	if ptrUsers == nil || len(ptrUsers) != 0 {
+		t.Errorf("invalid result: got %#v", ptrUsers)
+	}
+
+	var ptrArrUsers [1]*User
+	if _, err := indexer.Search(&ptrArrUsers); err != nil {
+		t.Error(err)
+	}
+	if ptrArrUsers[0] != nil {
+		t.Errorf("invalid result: got %#v", ptrArrUsers)
+	}
+}
+
 func TestIndexerScroll(t *testing.T) {
 	_ = indexer.DeleteIndex(&User{})
 	if err := indexer.CreateIndex(&User{}); err != nil {
@@ -249,7 +288,7 @@ func TestIndexerScroll(t *testing.T) {
 	if meta.ScrollID == "" {
 		t.Errorf("scroll id is empty")
 	}
-	if users != nil {
+	if users == nil || len(users) != 0 {
 		t.Errorf("invalid result: got %#v", users)
 	}
 }

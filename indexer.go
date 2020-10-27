@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"reflect"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v7"
@@ -61,7 +62,7 @@ func (indexer *Indexer) CreateIndexIfNotExist(model interface{}, reqFuncs ...fun
 	assertModel(model)
 
 	createReq := &esapi.IndicesCreateRequest{
-		Index: IndexName(model),
+		Index: url.QueryEscape(IndexName(model)),
 	}
 	for _, f := range reqFuncs {
 		f(createReq)
@@ -82,7 +83,7 @@ func (indexer *Indexer) CreateIndex(model interface{}, reqFuncs ...func(*esapi.I
 	assertModel(model)
 
 	createReq := &esapi.IndicesCreateRequest{
-		Index: IndexName(model),
+		Index: url.QueryEscape(IndexName(model)),
 	}
 	for _, f := range reqFuncs {
 		f(createReq)
@@ -95,7 +96,7 @@ func (indexer *Indexer) DeleteIndex(model interface{}, reqFuncs ...func(*esapi.I
 	assertModel(model)
 
 	deleteReq := &esapi.IndicesDeleteRequest{
-		Index: []string{IndexName(model)},
+		Index: []string{url.QueryEscape(IndexName(model))},
 	}
 	for _, f := range reqFuncs {
 		f(deleteReq)
@@ -108,7 +109,7 @@ func (indexer *Indexer) Delete(model interface{}, reqFuncs ...func(*esapi.Delete
 	assertModel(model)
 
 	deleteReq := &esapi.DeleteRequest{
-		Index:      IndexName(model),
+		Index:      url.QueryEscape(IndexName(model)),
 		DocumentID: DocumentID(model),
 	}
 	for _, f := range reqFuncs {
@@ -123,7 +124,7 @@ func (indexer *Indexer) Get(model interface{}, reqFuncs ...func(*esapi.GetReques
 	assertModel(model)
 
 	getReq := &esapi.GetRequest{
-		Index:      IndexName(model),
+		Index:      url.QueryEscape(IndexName(model)),
 		DocumentID: DocumentID(model),
 	}
 	for _, f := range reqFuncs {
@@ -152,7 +153,7 @@ func (indexer *Indexer) CreateWithoutID(model interface{}, reqFuncs ...func(*esa
 	}
 
 	indexReq := &esapi.IndexRequest{
-		Index: IndexName(model),
+		Index: url.QueryEscape(IndexName(model)),
 		Body:  reader,
 	}
 	for _, f := range reqFuncs {
@@ -172,7 +173,7 @@ func (indexer *Indexer) Update(model interface{}, reqFuncs ...func(*esapi.IndexR
 	}
 
 	indexReq := &esapi.IndexRequest{
-		Index:      IndexName(model),
+		Index:      url.QueryEscape(IndexName(model)),
 		DocumentID: DocumentID(model),
 		Body:       reader,
 	}
@@ -188,7 +189,7 @@ func (indexer *Indexer) Count(model interface{}, reqFuncs ...func(*esapi.CountRe
 	assertModel(model)
 
 	countReq := &esapi.CountRequest{
-		Index: []string{IndexName(model)},
+		Index: []string{url.QueryEscape(IndexName(model))},
 	}
 	for _, f := range reqFuncs {
 		f(countReq)
@@ -228,8 +229,15 @@ func (indexer *Indexer) Search(models interface{}, reqFuncs ...func(*esapi.Searc
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
+
+	rawSearchIndexNames := SearchIndexName(reflect.New(t).Interface())
+	searchIndexNames := make([]string, len(rawSearchIndexNames))
+	for i, indexName := range rawSearchIndexNames {
+		searchIndexNames[i] = url.QueryEscape(indexName)
+	}
+
 	searchReq := &esapi.SearchRequest{
-		Index: SearchIndexName(reflect.New(t).Interface()),
+		Index: searchIndexNames,
 		Size:  size,
 	}
 	for _, f := range reqFuncs {

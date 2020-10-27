@@ -36,12 +36,12 @@ func SearchIndexName(model interface{}) []string {
 func IndexNameWithAffix(indexName string) string {
 	// Dynamic index name
 	// ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/date-math-index-names.html
-	if !strings.Contains(indexName, "%3C") {
+	if !strings.Contains(indexName, "<") {
 		return globalConfig.IndexNamePrefix + indexName + globalConfig.IndexNameSuffix
 	}
 	replacer := strings.NewReplacer(
-		"%3C", "%3C"+globalConfig.IndexNamePrefix,
-		"%3E", globalConfig.IndexNameSuffix+"%3E",
+		"<", "<"+globalConfig.IndexNamePrefix,
+		">", globalConfig.IndexNameSuffix+">",
 	)
 	return replacer.Replace(indexName)
 }

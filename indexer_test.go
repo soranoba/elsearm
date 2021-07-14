@@ -47,6 +47,19 @@ func TestIndexerCreateWithoutID(t *testing.T) {
 	}
 }
 
+func TestIndexerCreateWithoutID_automaticId(t *testing.T) {
+	if err := indexer.CreateIndexIfNotExist(&Organization{}); err != nil {
+		t.Error(err)
+	}
+	org := &Organization{Name: "Doodle"}
+	if err := indexer.CreateWithoutID(org); err != nil {
+		t.Error(err)
+	}
+	if org.ID == nil {
+		t.Errorf("failed to set the document id")
+	}
+}
+
 func TestIndexerUpdate(t *testing.T) {
 	if err := indexer.CreateIndexIfNotExist(&User{}); err != nil {
 		t.Error(err)
@@ -150,7 +163,7 @@ func TestIndexerSearch(t *testing.T) {
 	if _, err := indexer.Search(&arrUsers); err != nil {
 		t.Error(err)
 	}
-	if len(arrUsers) != 1 || arrUsers[0].Name != "Alice" {
+	if arrUsers[0].Name != "Alice" {
 		t.Errorf("invalid result: got %#v", arrUsers)
 	}
 
@@ -169,8 +182,38 @@ func TestIndexerSearch(t *testing.T) {
 	if _, err := indexer.Search(&ptrArrUsers); err != nil {
 		t.Error(err)
 	}
-	if len(ptrArrUsers) != 1 || ptrArrUsers[0].Name != "Alice" {
+	if ptrArrUsers[0].Name != "Alice" {
 		t.Errorf("invalid result: got %#v", ptrArrUsers)
+	}
+}
+
+func TestIndexerSearch_automaticId(t *testing.T) {
+	_ = indexer.DeleteIndex(&Organization{})
+	if err := indexer.CreateIndex(&Organization{}); err != nil {
+		t.Error(err)
+	}
+
+	for _, name := range []string{"Alice", "Bob", "Carol"} {
+		if err := indexer.CreateWithoutID(&Organization{Name: name}); err != nil {
+			t.Error(err)
+		}
+	}
+
+	// NOTE: default refresh interval.
+	time.Sleep(1 * time.Second)
+
+	var orgs []Organization
+	if _, err := indexer.Search(&orgs); err != nil {
+		t.Error(err)
+	}
+	if len(orgs) != 3 ||
+		orgs[0].Name != "Alice" ||
+		orgs[1].Name != "Bob" ||
+		orgs[2].Name != "Carol" ||
+		orgs[0].ID == nil ||
+		orgs[1].ID == nil ||
+		orgs[2].ID == nil {
+		t.Errorf("invalid result: got %#v", orgs)
 	}
 }
 

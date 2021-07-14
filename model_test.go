@@ -16,8 +16,8 @@ type User struct {
 	Name string `json:"name"`
 }
 
-func (u *User) GetDocumentID() string {
-	return DefaultDocumentID(u)
+func (u *User) GetDocumentID() (string, error) {
+	return DefaultDocumentID(u), nil
 }
 
 func (u *User) GetIndexName() string {
@@ -40,8 +40,12 @@ func TestUserInterface(t *testing.T) {
 
 func TestDefaultValues(t *testing.T) {
 	user := &User{ID: 1, Name: "Alice"}
-	if user.GetDocumentID() != "1" {
-		t.Errorf("invalid documentID: got = %s, expect = %s", user.GetDocumentID(), "1")
+	documentId, err := user.GetDocumentID()
+	if err != nil {
+		t.Errorf("failed to get documentID: err = %s", err.Error())
+	}
+	if documentId != "1" {
+		t.Errorf("invalid documentID: got = %s, expect = %s", documentId, "1")
 	}
 	if user.GetIndexName() != "user" {
 		t.Errorf("invalid indexName: got = %s, expect = %s", user.GetIndexName(), "User")
@@ -73,8 +77,8 @@ type Team struct {
 	Name string `json:"name"`
 }
 
-func (t *Team) GetDocumentID() string {
-	return t.Name
+func (t *Team) GetDocumentID() (string, error) {
+	return t.Name, nil
 }
 
 func (t *Team) GetIndexName() string {
@@ -112,8 +116,12 @@ func TestTeamInterface(t *testing.T) {
 
 func TestCustomValues(t *testing.T) {
 	team := &Team{ID: 1, Name: "Booooom"}
-	if team.GetDocumentID() != "Booooom" {
-		t.Errorf("invalid documentID: got = %s, expect = %s", team.GetDocumentID(), "Booooom")
+	documentId, err := team.GetDocumentID()
+	if err != nil {
+		t.Errorf("failed to get documentID: err = %s", err.Error())
+	}
+	if documentId != "Booooom" {
+		t.Errorf("invalid documentID: got = %s, expect = %s", documentId, "Booooom")
 	}
 	if team.GetIndexName() != "team" {
 		t.Errorf("invalid indexName: got = %s, expect = %s", team.GetIndexName(), "team")
@@ -137,5 +145,43 @@ func TestCustomValues(t *testing.T) {
 	}
 	if team.ID != 1 || team.Name != "Booooom" {
 		t.Errorf("failed to parse: got = %#v", team)
+	}
+}
+
+type Organization struct {
+	ID   *string `json:"-"`
+	Name string  `json:"name"`
+}
+
+func (o *Organization) GetDocumentID() (string, error) {
+	if o.ID == nil {
+		return "", errors.New("ID is unknown")
+	}
+	return *o.ID, nil
+}
+
+func (o *Organization) SetDocumentID(id string) error {
+	o.ID = &id
+	return nil
+}
+
+func TestOrganizationInterface(t *testing.T) {
+	var _ AutomaticIDModel = &Organization{}
+}
+
+func TestAutomaticID(t *testing.T) {
+	org := &Organization{ID: nil, Name: "Doodle"}
+	if _, err := DocumentID(org); err == nil {
+		t.Errorf("documentId should be unknown")
+	}
+	if err := SetDocumentID(org, "111"); err != nil {
+		t.Errorf("failed to set documentID: %s", err.Error())
+	}
+	documentId, err := DocumentID(org)
+	if err != nil {
+		t.Errorf("failed to get documentId: %s", err.Error())
+	}
+	if documentId != "111" {
+		t.Errorf("Invalid documentId: %s", documentId)
 	}
 }

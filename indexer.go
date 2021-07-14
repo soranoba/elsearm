@@ -108,9 +108,14 @@ func (indexer *Indexer) DeleteIndex(model interface{}, reqFuncs ...func(*esapi.I
 func (indexer *Indexer) Delete(model interface{}, reqFuncs ...func(*esapi.DeleteRequest)) error {
 	assertModel(model)
 
+	documentId, err := DocumentID(model)
+	if err != nil {
+		return err
+	}
+
 	deleteReq := &esapi.DeleteRequest{
 		Index:      url.QueryEscape(IndexName(model)),
-		DocumentID: DocumentID(model),
+		DocumentID: documentId,
 	}
 	for _, f := range reqFuncs {
 		f(deleteReq)
@@ -123,9 +128,14 @@ func (indexer *Indexer) Delete(model interface{}, reqFuncs ...func(*esapi.Delete
 func (indexer *Indexer) Get(model interface{}, reqFuncs ...func(*esapi.GetRequest)) error {
 	assertModel(model)
 
+	documentId, err := DocumentID(model)
+	if err != nil {
+		return err
+	}
+
 	getReq := &esapi.GetRequest{
 		Index:      url.QueryEscape(IndexName(model)),
-		DocumentID: DocumentID(model),
+		DocumentID: documentId,
 	}
 	for _, f := range reqFuncs {
 		f(getReq)
@@ -160,7 +170,16 @@ func (indexer *Indexer) CreateWithoutID(model interface{}, reqFuncs ...func(*esa
 		f(indexReq)
 	}
 
-	return indexer.Do(indexReq)
+	var result map[string]interface{}
+	if err := indexer.Do(indexReq, &result); err != nil {
+		return err
+	}
+	if id, ok := result["_id"]; ok {
+		if strId, ok := id.(string); ok {
+			return SetDocumentID(model, strId)
+		}
+	}
+	return nil
 }
 
 // Update (or create) the document in index.
@@ -172,9 +191,14 @@ func (indexer *Indexer) Update(model interface{}, reqFuncs ...func(*esapi.IndexR
 		return err
 	}
 
+	documentId, err := DocumentID(model)
+	if err != nil {
+		return err
+	}
+
 	indexReq := &esapi.IndexRequest{
 		Index:      url.QueryEscape(IndexName(model)),
-		DocumentID: DocumentID(model),
+		DocumentID: documentId,
 		Body:       reader,
 	}
 	for _, f := range reqFuncs {

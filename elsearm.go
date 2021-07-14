@@ -48,12 +48,12 @@ func IndexNameWithAffix(indexName string) string {
 
 // DocumentID returns a document id of the model.
 // By default, it returns value of id or ID field in the model. Otherwise, it returns an empty string.
-func DocumentID(model interface{}) string {
+func DocumentID(model interface{}) (string, error) {
 	searchable, ok := model.(CustomDocumentIdModel)
 	if ok {
 		return searchable.GetDocumentID()
 	}
-	return DefaultDocumentID(model)
+	return DefaultDocumentID(model), nil
 }
 
 // DocumentBody transforms the model into a data structure that is stored in Elasticsearch.
@@ -84,4 +84,14 @@ func ParseDocument(model interface{}, reader io.Reader) error {
 		return searchable.ParseDocument(reader)
 	}
 	return DefaultParseDocument(model, reader)
+}
+
+// SetDocumentID set the DocumentID to the model.
+// By default, no executed.
+func SetDocumentID(model interface{}, id string) error {
+	searchable, ok := model.(AutomaticIDModel)
+	if ok {
+		return searchable.SetDocumentID(id)
+	}
+	return nil
 }

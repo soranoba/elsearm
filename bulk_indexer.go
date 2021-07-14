@@ -55,9 +55,14 @@ func (indexer *BulkIndexer) Update(model interface{}) error {
 		return err
 	}
 
+	documentId, err := DocumentID(model)
+	if err != nil {
+		return err
+	}
+
 	return indexer.bulk.Add(indexer.ctx, esutil.BulkIndexerItem{
 		Index:      IndexName(model),
-		DocumentID: DocumentID(model),
+		DocumentID: documentId,
 		Action:     "index",
 		Body:       reader,
 	})
@@ -68,9 +73,14 @@ func (indexer *BulkIndexer) Update(model interface{}) error {
 func (indexer *BulkIndexer) Delete(model interface{}) error {
 	assertModel(model)
 
+	documentId, err := DocumentID(model)
+	if err != nil {
+		return err
+	}
+
 	return indexer.bulk.Add(indexer.ctx, esutil.BulkIndexerItem{
 		Index:      IndexName(model),
-		DocumentID: DocumentID(model),
+		DocumentID: documentId,
 		Action:     "delete",
 	})
 }

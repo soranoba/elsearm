@@ -38,6 +38,7 @@ type SearchResponse struct {
 			Relation string `json:"relation"`
 		} `json:"total"`
 		Hits []struct {
+			ID     string          `json:"_id"`
 			Source json.RawMessage `json:"_source"`
 		} `json:"hits"`
 	} `json:"hits"`
@@ -84,6 +85,9 @@ func (res *SearchResponse) SetResult(models interface{}) error {
 			}
 
 			if err := ParseDocument(aModel, bytes.NewReader(hit.Source)); err != nil {
+				return err
+			}
+			if err := SetDocumentID(aModel, hit.ID); err != nil {
 				return err
 			}
 		} else {

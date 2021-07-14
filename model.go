@@ -24,14 +24,21 @@ type CustomSearchIndexNameModel interface {
 
 // CustomDocumentIdModel is an interface to implement when customizing DocumentID of model.
 type CustomDocumentIdModel interface {
-	// GetDocumentID returns an DocumentID.
-	GetDocumentID() string
+	// GetDocumentID returns an DocumentID. If the DocumentID is not exist, it returns an error.
+	GetDocumentID() (string, error)
 }
 
 // CustomDocumentBodyModel is an interface to implement when customizing DocumentBody of model.
 type CustomDocumentBodyModel interface {
 	GetDocumentBody() (io.Reader, error)
 	ParseDocument(io.Reader) error
+}
+
+//  AutomaticIDModel is an interface to implement when Elasticsearch automatically creates id of the model.
+type AutomaticIDModel interface {
+	CustomDocumentIdModel
+	// SetDocumentID set the DocumentID. If it failed, it returns an error.
+	SetDocumentID(id string) error
 }
 
 // DefaultIndexName returns a default IndexName.

@@ -46,6 +46,15 @@ func IndexNameWithAffix(indexName string) string {
 	return replacer.Replace(indexName)
 }
 
+// IndexNamesWithAffix returns index names appending prefix and suffix.
+func IndexNamesWithAffix(indexNames []string) []string {
+	indexNamesWithAffix := make([]string, len(indexNames))
+	for i, indexName := range indexNames {
+		indexNamesWithAffix[i] = IndexNameWithAffix(indexName)
+	}
+	return indexNamesWithAffix
+}
+
 // DocumentID returns a document id of the model.
 // By default, it returns value of id or ID field in the model. Otherwise, it returns an empty string.
 func DocumentID(model interface{}) (string, error) {
